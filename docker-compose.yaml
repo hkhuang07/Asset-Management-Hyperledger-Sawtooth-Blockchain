@@ -1,230 +1,100 @@
-#version: '3.6'
+version: '2.1'
 
 services:
-  # ========================================
-  # Validator 0 (Leader/Genesis)
-  # ========================================
-  validator-0:
-    image: hyperledger/sawtooth-validator:latest
-    container_name: sawtooth-validator-0
-    expose: [4004, 8800, 5050]
-    ports: ["4004:4004", "8800:8800"]
-    environment: [SAWTHOME=/etc/sawtooth]
-    volumes:
-      - ./sawtooth/keys/validator-0.priv:/etc/sawtooth/keys/validator.priv:ro
-      - ./sawtooth/keys/validator-0.pub:/etc/sawtooth/keys/validator.pub:ro
-      - ./sawtooth/genesis:/genesis:ro
-    command: |
-      bash -c "
-        if [ ! -f /etc/sawtooth/keys/validator.priv ]; then sawadm keygen; fi;
+  # ==================================
+  # C O R E  V A L I D A T O R
+  # ==================================
+  validator:
+    image: hyperledger/sawtooth-validator:1.2.6
+    container_name: sawtooth-validator
+    expose:
+      - 4004
+      - 8800
+      - 5050
+    ports:
+      - "4004:4004"
+    command: "bash -c \"\
+        sawadm keygen --force && \
+        sawset genesis -k /etc/sawtooth/keys/validator.priv && \
+        sawset proposal create \
+          -k /etc/sawtooth/keys/validator.priv \
+          sawtooth.consensus.algorithm.name=Devmode \
+          sawtooth.consensus.algorithm.version=0.1 \
+          sawtooth.publisher.max_batches_per_block=500 \
+          -o config.batch && \
+        sawadm genesis config-genesis.batch config.batch && \
         sawtooth-validator -vv \
-          --endpoint tcp://validator-0:8800 \
-          --bind network:tcp://0.0.0.0:8800 \
-          --bind component:tcp://0.0.0.0:4004 \
-          --bind consensus:tcp://0.0.0.0:5050 \
-          --peering static \
-          --peers tcp://validator-1:8800,tcp://validator-2:8800,tcp://validator-3:8800 \
-          --scheduler parallel
-      "
-    networks: [sawtooth-net]
+          --endpoint tcp://validator:8800 \
+          --bind component:tcp://eth0:4004 \
+          --bind network:tcp://eth0:8800 \
+          --bind consensus:tcp://eth0:5050 \
+          --scheduler parallel \
+        \""
 
-  pbft-engine-0:
-    image: hyperledger/sawtooth-pbft-engine:latest
-    container_name: sawtooth-pbft-engine-0
-    command: pbft-engine -vv --connect tcp://validator-0:5050
-    depends_on: [validator-0]
-    networks: [sawtooth-net]
+  devmode-engine:
+    image: hyperledger/sawtooth-devmode-engine-rust:chime
+    container_name: sawtooth-devmode-engine
+    depends_on:
+      - validator
+    environment:
+      - RUST_LOG=debug
+    command: devmode-engine-rust -v -C tcp://validator:5050
 
-  rest-api-0:
-    image: hyperledger/sawtooth-rest-api:latest
-    container_name: sawtooth-rest-api-0
-    ports: ["8008:8008"]
-    command: sawtooth-rest-api -v --connect tcp://validator-0:4004 --bind 0.0.0.0:8008
-    depends_on: [validator-0]
-    networks: [sawtooth-net]
+  rest-api:
+    image: hyperledger/sawtooth-rest-api:1.2.6
+    container_name: sawtooth-rest-api
+    expose:
+      - 8008
+    ports:
+      - "8008:8008"
+    depends_on:
+      - validator
+    command: sawtooth-rest-api -v -C tcp://validator:4004 --bind rest-api:8008
 
-  # ========================================
-  # Validator 1
-  # ========================================
-  validator-1:
-    image: hyperledger/sawtooth-validator:latest
-    container_name: sawtooth-validator-1
-    expose: [4004, 8800, 5050]
-    ports: ["4005:4004", "8801:8800"]
-    volumes:
-      - ./sawtooth/keys/validator-1.priv:/etc/sawtooth/keys/validator.priv:ro
-      - ./sawtooth/keys/validator-1.pub:/etc/sawtooth/keys/validator.pub:ro
-    command: |
-      bash -c "
-        if [ ! -f /etc/sawtooth/keys/validator.priv ]; then sawadm keygen; fi;
-        sawtooth-validator -vv \
-          --endpoint tcp://validator-1:8800 \
-          --bind network:tcp://0.0.0.0:8800 \
-          --bind component:tcp://0.0.0.0:4004 \
-          --bind consensus:tcp://0.0.0.0:5050 \
-          --peering static \
-          --peers tcp://validator-0:8800,tcp://validator-2:8800,tcp://validator-3:8800 \
-          --scheduler parallel
-      "
-    networks: [sawtooth-net]
-
-  pbft-engine-1:
-    image: hyperledger/sawtooth-pbft-engine:latest
-    container_name: sawtooth-pbft-engine-1
-    command: pbft-engine -vv --connect tcp://validator-1:5050
-    depends_on: [validator-1]
-    networks: [sawtooth-net]
-
-  rest-api-1:
-    image: hyperledger/sawtooth-rest-api:latest
-    container_name: sawtooth-rest-api-1
-    ports: ["8009:8008"]
-    command: sawtooth-rest-api -v --connect tcp://validator-1:4004 --bind 0.0.0.0:8008
-    depends_on: [validator-1]
-    networks: [sawtooth-net]
-
-  # ========================================
-  # Validator 2
-  # ========================================
-  validator-2:
-    image: hyperledger/sawtooth-validator:latest
-    container_name: sawtooth-validator-2
-    expose: [4004, 8800, 5050]
-    ports: ["4006:4004", "8802:8800"]
-    volumes:
-      - ./sawtooth/keys/validator-2.priv:/etc/sawtooth/keys/validator.priv:ro
-      - ./sawtooth/keys/validator-2.pub:/etc/sawtooth/keys/validator.pub:ro
-    command: |
-      bash -c "
-        if [ ! -f /etc/sawtooth/keys/validator.priv ]; then sawadm keygen; fi;
-        sawtooth-validator -vv \
-          --endpoint tcp://validator-2:8800 \
-          --bind network:tcp://0.0.0.0:8800 \
-          --bind component:tcp://0.0.0.0:4004 \
-          --bind consensus:tcp://0.0.0.0:5050 \
-          --peering static \
-          --peers tcp://validator-0:8800,tcp://validator-1:8800,tcp://validator-3:8800 \
-          --scheduler parallel
-      "
-    networks: [sawtooth-net]
-
-  pbft-engine-2:
-    image: hyperledger/sawtooth-pbft-engine:latest
-    container_name: sawtooth-pbft-engine-2
-    command: pbft-engine -vv --connect tcp://validator-2:5050
-    depends_on: [validator-2]
-    networks: [sawtooth-net]
-
-  rest-api-2:
-    image: hyperledger/sawtooth-rest-api:latest
-    container_name: sawtooth-rest-api-2
-    ports: ["8010:8008"]
-    command: sawtooth-rest-api -v --connect tcp://validator-2:4004 --bind 0.0.0.0:8008
-    depends_on: [validator-2]
-    networks: [sawtooth-net]
-
-  # ========================================
-  # Validator 3
-  # ========================================
-  validator-3:
-    image: hyperledger/sawtooth-validator:latest
-    container_name: sawtooth-validator-3
-    expose: [4004, 8800, 5050]
-    ports: ["4007:4004", "8803:8800"]
-    volumes:
-      - ./sawtooth/keys/validator-3.priv:/etc/sawtooth/keys/validator.priv:ro
-      - ./sawtooth/keys/validator-3.pub:/etc/sawtooth/keys/validator.pub:ro
-    command: |
-      bash -c "
-        if [ ! -f /etc/sawtooth/keys/validator.priv ]; then sawadm keygen; fi;
-        sawtooth-validator -vv \
-          --endpoint tcp://validator-3:8800 \
-          --bind network:tcp://0.0.0.0:8800 \
-          --bind component:tcp://0.0.0.0:4004 \
-          --bind consensus:tcp://0.0.0.0:5050 \
-          --peering static \
-          --peers tcp://validator-0:8800,tcp://validator-1:8800,tcp://validator-2:8800 \
-          --scheduler parallel
-      "
-    networks: [sawtooth-net]
-
-  pbft-engine-3:
-    image: hyperledger/sawtooth-pbft-engine:latest
-    container_name: sawtooth-pbft-engine-3
-    command: pbft-engine -vv --connect tcp://validator-3:5050
-    depends_on: [validator-3]
-    networks: [sawtooth-net]
-
-  rest-api-3:
-    image: hyperledger/sawtooth-rest-api:latest
-    container_name: sawtooth-rest-api-3
-    ports: ["8011:8008"]
-    command: sawtooth-rest-api -v --connect tcp://validator-3:4004 --bind 0.0.0.0:8008
-    depends_on: [validator-3]
-    networks: [sawtooth-net]
-
-  # ========================================
-  # Infrastructure & App Layer
-  # ========================================
   settings-tp:
-    image: hyperledger/sawtooth-settings-tp:latest
+    image: hyperledger/sawtooth-settings-tp:1.2.6
     container_name: sawtooth-settings-tp
-    depends_on: [validator-0]
-    command: settings-tp -v --connect tcp://validator-0:4004
-    networks: [sawtooth-net]
+    depends_on:
+      - validator
+    command: settings-tp -v -C tcp://validator:4004
 
-  garden-tp:
-    build: { context: ./processors/garden_tp, dockerfile: Dockerfile }
-    container_name: sawtooth-garden-tp
-    depends_on: [validator-0]
+  # ==================================
+  # M Y  C U S T O M  T P (ASSET TP)
+  # ==================================
+  asset-tp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tp-asset
+    container_name: sawtooth-asset-tp
+    depends_on:
+      - validator
+    volumes:
+      - ./transaction-processors/asset_tp:/project/asset_tp
+    command: python3 /project/asset_tp/main.py -C tcp://validator:4004
+
+  # ==================================
+  # B A C K E N D  A P I
+  # ==================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sawtooth-backend
+    ports:
+      - "3001:3001"
     environment:
-      - PYTHONPATH=/project
-      - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-    volumes: ["./processors/garden_tp:/project"]
-    networks: [sawtooth-net]
+      - REST_API_URL=http://rest-api:8008
+      - ZMQ_URL=tcp://validator:4004
+    depends_on:
+      - rest-api
+      - validator
 
-  mongodb:
-    image: mongo:latest
-    container_name: mongodb
-    ports: ["27017:27017"]
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password123
-    volumes: ["mongodb_data:/data/db"]
-    networks: [sawtooth-net]
-
-  iot-gateway:
-    build: { context: ./gateway, dockerfile: Dockerfile }
-    container_name: iot-gateway
-    ports: ["3030:3030"]
-    depends_on: [rest-api-0, mongodb]
-    volumes:
-      - ./gateway:/app
-      - /app/node_modules # Sửa lỗi MODULE_NOT_FOUND
-      - ./device_keys:/app/keys
-    networks: [sawtooth-net]
-
-  event-subscriber:
-    build: { context: ./subscriber, dockerfile: Dockerfile }
-    container_name: event-subscriber
-    depends_on: [validator-0, mongodb]
-    volumes:
-      - ./subscriber:/app
-      - /app/node_modules
-    networks: [sawtooth-net]
-
-  dashboard:
-    build: { context: ./dashboard, dockerfile: Dockerfile }
-    container_name: vue-dashboard
-    ports: ["8080:8080"]
-    depends_on: [event-subscriber]
-    volumes:
-      - ./dashboard:/app
-      - /app/node_modules
-    networks: [sawtooth-net]
-
-networks:
-  sawtooth-net: { driver: bridge }
-
-volumes:
-  mongodb_data:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sawtooth-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

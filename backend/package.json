@@ -1,0 +1,22 @@
+{
+  "name": "sawtooth-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Sawtooth Asset Management",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "sawtooth-sdk": "^1.0.5",
+    "socket.io": "^4.7.2",
+    "zeromq": "^6.0.0-beta.16",
+    "protobufjs": "^7.2.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

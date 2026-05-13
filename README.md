@@ -1,421 +1,99 @@
-# Smart Garden IoT - Blockchain Powered Garden Monitoring System
+# 🛡️ Hyperledger Sawtooth Asset Management
 
-## Overview
+Hệ thống quản lý tài sản doanh nghiệp được xây dựng trên nền tảng **Hyperledger Sawtooth**, giải quyết các bài toán về tính minh bạch, bảo mật, và khả năng mở rộng của mạng Blockchain phân tán.
 
-Smart Garden IoT is a decentralized IoT monitoring system built on Hyperledger Sawtooth blockchain technology. It enables secure, transparent, and tamper-proof monitoring of garden sensors with automatic irrigation control through smart contracts.
+Dự án này được thiết kế để **trực quan hóa các khái niệm Blockchain cốt lõi** như: Tính bất biến (Immutability), Phân tán (Decentralization), Thực thi song song (Parallel Scheduling) và Tách biệt logic nghiệp vụ (Separation of Application Domain).
 
-## Key Features
+---
 
-- **Blockchain Security**: All sensor data is stored on a distributed ledger using Hyperledger Sawtooth PBFT consensus
-- **Smart Contract Automation**: Automatic pump activation when humidity drops below 30%
-- **Device Authentication**: Only whitelisted devices can submit data to the network
-- **Real-time Dashboard**: Vue.js dashboard with live charts and network status
-- **Multi-Validator Network**: 4-node PBFT network for fault tolerance
-- **Off-chain Storage**: MongoDB for fast queries and historical data
+## 🏗️ Kiến trúc Hệ thống
 
-## Architecture
+- **Blockchain Core (Validator & Consensus)**: Chạy trên Docker với thuật toán đồng thuận **Devmode**. Bao gồm Validator, REST API.
+- **Transaction Processors (Ứng dụng)**: 
+  - `Asset-TP` (Python): Xử lý logic nghiệp vụ tài sản (Tạo mới, Chuyển nhượng).
+  - `Settings-TP`: Quản lý cấu hình mạng lưới.
+- **Backend (Node.js)**: Kết nối với Sawtooth qua REST API để đọc trạng thái và kết nối **ZeroMQ (ZMQ)** trực tiếp vào Validator để bắt sự kiện (Event Subscriptions) theo thời gian thực.
+- **Frontend (React.js + TailwindCSS)**: Giao diện người dùng hiện đại, kết nối qua WebSocket tới Backend để cập nhật UI ngay lập tức khi có block mới.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Smart Garden IoT System                      │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌─────────────┐     ┌─────────────────────────────────────┐       │
-│  │  ESP32/     │────▶│           IoT Gateway               │       │
-│  │  Simulator  │     │  (Transaction Signing & Submission) │       │
-│  └─────────────┘     └────────────┬────────────────────────┘       │
-│                                   │                                 │
-│                                   ▼                                 │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │              Hyperledger Sawtooth PBFT Network               │   │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │   │
-│  │  │ Val-0   │──│ Val-1   │──│ Val-2   │──│ Val-3   │        │   │
-│  │  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘        │   │
-│  │       │            │            │            │               │   │
-│  │       └────────────┴────────────┴────────────┘               │   │
-│  │                      (PBFT Consensus)                         │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                                   │                                 │
-│                                   ▼                                 │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                    Garden Contract TP                        │   │
-│  │  - Device Registration                                       │   │
-│  │  - Telemetry Validation                                      │   │
-│  │  - Smart Pump Control (Humidity < 30%)                       │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                                   │                                 │
-│                                   ▼                                 │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                    Event Subscriber                          │   │
-│  │  - Block Event Listening                                     │   │
-│  │  - MongoDB Sync                                              │   │
-│  │  - Socket.io Broadcasting                                    │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                                   │                                 │
-│              ┌────────────────────┼────────────────────┐          │
-│              ▼                    ▼                    ▼          │
-│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐    │
-│  │  MongoDB     │      │  Vue.js      │      │  External    │    │
-│  │  Database    │      │  Dashboard   │      │  APIs        │    │
-│  └──────────────┘      └──────────────┘      └──────────────┘    │
-│                                                                       │
-└───────────────────────────────────────────────────────────────────────┘
-```
+---
 
-## Project Structure
+## 🚀 Hướng dẫn Cài đặt & Khởi chạy
 
-```
-smart-garden-iot/
-├── docker-compose.yaml          # Main orchestration file
-├── README.md                    # This file
-│
-├── sawtooth/                    # Blockchain configuration
-│   ├── keys/                    # Validator keys
-│   └── genesis/                 # Genesis configuration
-│
-├── processors/
-│   └── garden_tp/               # Smart Contract (Transaction Processor)
-│       ├── Dockerfile
-│       ├── handler.py           # Contract logic
-│       └── main.py              # TP entry point
-│
-├── gateway/                     # IoT Gateway Service
-│   ├── Dockerfile
-│       ├── index.js             # REST API & signing logic
-│       └── package.json
-│
-├── subscriber/                  # Event Listener Service
-│   ├── Dockerfile
-│   ├── sync.js                  # Blockchain sync logic
-│   └── package.json
-│
-├── dashboard/                   # Vue.js Frontend
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── vite.config.js
-│   ├── index.html
-│   └── src/
-│       ├── main.js
-│       ├── App.vue
-│       ├── router/
-│       ├── stores/
-│       ├── views/
-│       └── components/
-│
-└── simulator/                   # ESP32 Simulator
-    ├── Dockerfile
-    └── sim_esp32.py             # Sensor data generator
-```
+### 1. Yêu cầu hệ thống
+- **Docker & Docker Compose** (Phiên bản mới nhất khuyên dùng).
+- **WSL2** (nếu bạn sử dụng Windows). Khuyên dùng chạy Docker bên trong WSL Ubuntu.
 
-## Prerequisites
+### 2. Cấu hình Môi trường (Cực kỳ quan trọng cho WSL/Windows)
 
-- Docker Engine 20.10+
-- Docker Compose v2+
-- 8GB RAM (minimum)
-- 4 CPU cores (recommended)
+Frontend React.js chạy trên trình duyệt (ở máy host Windows) cần gọi API tới Backend (nằm trong container Docker của WSL). Để tránh lỗi kết nối, bạn cần khai báo địa chỉ IP của máy WSL.
 
-## Quick Start
-
-### 1. Clone and Setup
-
-```bash
-git clone https://github.com/hkhuang07/Iot-Blockchain-Sawtooth-Authentication
-cd Iot-Blockchain-Sawtooth-Authentication
-```
-
-### 2. Generate Validator Keys
-
-```bash
-# Create keys directory
-mkdir -p sawtooth/keys
-
-# Generate keys for 4 validators
-for i in {0..3}; do
-    docker run --rm \
-        -v $(pwd)/sawtooth/keys:/keys \
-        hyperledger/sawtooth-validator:latest \
-        sawtooth keygen --key-dir /keys validator-$i
-done
-```
-
-### 3. Create Genesis Block
-
-```bash
-docker run --rm \
-    -v $(pwd)/sawtooth/genesis:/genesis \
-    hyperledger/sawtooth-cli:latest \
-    sawset genesis \
-        -k /dev/null \
-        -o /genesis/genesis.batch
-```
-
-- or using sawtooth/genesis
-- Step A: Create a folder to store Genesis (if it doesn't already exist)
-
-```
-mkdir -p sawtooth/genesis
-```
-
-- Step B: Create the Genesis configuration file (config-genesis.batch). This command will initialize the basic system settings for the Blockchain:
-
-```
-docker run --rm \
-  -v $(pwd)/sawtooth/genesis:/genesis \
-  hyperledger/sawtooth-validator:latest \
-  sawset genesis -k /dev/null -o /genesis/config-genesis.batch
-```
-
-- Step C: Add Validator-0's key to the configuration (Required for PBFT) To demonstrate integrity and identity, you need to assign validator-0's public key as the administrator key:
-
-```
-docker run --rm \
-  -v $(pwd)/sawtooth/keys:/keys \
-  -v $(pwd)/sawtooth/genesis:/genesis \
-  hyperledger/sawtooth-validator:latest \
-  sawset proposal create \
-    -k /keys/validator-0.priv \
-    sawtooth.settings.vote.proposers=$(cat sawtooth/keys/validator-0.pub) \
-    -o /genesis/proposers.batch
-
-```
-
-- 3. Tại sao nên dùng sawtooth-validator?
-- Tính nhất quán: Trong tệp docker-compose.yaml của bạn, tất cả các dịch vụ validator đều sử dụng ảnh hyperledger/sawtooth-validator:latest. Việc sử dụng cùng một ảnh để tạo dữ liệu genesis đảm bảo định dạng tệp tin tương thích 100%.
-- Đầy đủ công cụ: Ảnh này chứa đầy đủ các bộ công cụ quản trị (admin tools) của Hyperledger Sawtooth.
-- Final Step: Combining into a Genesis Block. After creating the .batch files, use the following command to merge them into a stub block:
-
-```
-docker run --rm \
-  -v $(pwd)/sawtooth/keys:/keys \
-  -v $(pwd)/sawtooth/genesis:/genesis \
-  hyperledger/sawtooth-validator:latest \
-  sawadm genesis /genesis/config-genesis.batch /genesis/proposers.batch
-```
-
-- After this command finishes running, a genesis.batch file will appear in the sawtooth/genesis directory. At this point, you are ready to run: `docker compose up -d --build`
-
-### 4. Start the Network
-
-```bash
-#clean cache build:
-docker builder prune -a
-
-#clean system if previous step not enought to up composer
-docker system prune
-
-# Build and start all services
-docker compose up -d --build
-#docker -compose up -d 
-
-# View logs
-docker-compose logs -f
-
-# Check service status
-docker-compose ps
-```
-
-### 5. Access the Dashboard
-
-Open your browser and navigate to:
-
-- **Dashboard**: http://localhost:8080
-- **REST API**: http://localhost:3000
-- **Validator-0**: http://localhost:8008
-
-## Services
-
-| Service          | Port       | Description            |
-| ---------------- | ---------- | ---------------------- |
-| validator-0      | 4004, 8800 | PBFT Validator Node 0  |
-| validator-1      | 4004, 8801 | PBFT Validator Node 1  |
-| validator-2      | 4004, 8802 | PBFT Validator Node 2  |
-| validator-3      | 4004, 8803 | PBFT Validator Node 3  |
-| rest-api-0       | 8008       | REST API (Validator 0) |
-| rest-api-1       | 8009       | REST API (Validator 1) |
-| rest-api-2       | 8010       | REST API (Validator 2) |
-| rest-api-3       | 8011       | REST API (Validator 3) |
-| iot-gateway      | 3000       | IoT Gateway API        |
-| event-subscriber | 3001       | WebSocket Server       |
-| dashboard        | 8080       | Vue.js Dashboard       |
-| mongodb          | 27017      | MongoDB Database       |
-
-## API Documentation
-
-### Register Device
-
-```bash
-curl -X POST http://localhost:3000/api/devices/register \
-  -H "Content-Type: application/json" \
-  -d '{"device_id": "sensor_01", "device_name": "Garden Sensor 1"}'
-```
-
-### Send Telemetry
-
-```bash
-curl -X POST http://localhost:3000/api/telemetry \
-  -H "Content-Type: application/json" \
-  -d '{"device_id": "sensor_01", "temperature": 25.5, "humidity": 62.3}'
-```
-
-### Get Device Info
-
-```bash
-curl http://localhost:3000/api/devices/sensor_01
-```
-
-### Get Block Info
-
-```bash
-curl http://localhost:8008/blocks
-```
-
-## Demo Scenarios
-
-### Scenario 1: Smart Contract Activation
-
-1. Start the sensor simulator:
-
-   ```bash
-   python simulator/sim_esp32.py --device-id sensor_01 --gateway-url http://localhost:3000
+1. Bật Terminal WSL Ubuntu lên và gõ lệnh: `ip addr show eth0` (hoặc `hostname -I`) để lấy địa chỉ IP của WSL (Ví dụ: `172.20.62.104`).
+2. Mở file `frontend/.env` (tạo mới nếu chưa có) và nhập địa chỉ IP đó vào:
+   ```env
+   VITE_API_URL=http://172.20.62.104:3001
    ```
-2. Watch the dashboard - when humidity drops below 30%, the pump status will automatically change to "ON"
-3. Check the blockchain explorer to see the smart contract transaction
+*(Lưu ý: Nếu bạn chạy thẳng trên Linux hoặc macOS không qua WSL ảo hóa, bạn có thể để `http://localhost:3001`)*
 
-### Scenario 2: Fault Tolerance
-
-1. While the system is running:
-
-   ```bash
-   docker-compose stop validator-3
-   ```
-2. Continue sending telemetry data
-3. Observe that the system continues to function with 3 validators (PBFT tolerates 1 fault with 4 nodes)
-
-### Scenario 3: Device Authentication
-
-1. Attempt to send data from an unregistered device:
-
-   ```bash
-   curl -X POST http://localhost:3000/api/telemetry \
-     -H "Content-Type: application/json" \
-     -d '{"device_id": "unauthorized_device", "temperature": 25, "humidity": 50}'
-   ```
-2. The transaction will be rejected by the smart contract
-
-## Smart Contract Logic
-
-The GardenContract handles the following actions:
-
-### REGISTER_DEVICE
-
-- Validates device ID and name
-- Stores device public key for authentication
-- Adds device to whitelist
-
-### SEND_TELEMETRY
-
-- Validates device is whitelisted
-- Verifies transaction signature
-- **Smart Contract Logic**: If humidity < 30%, automatically sets pump status to "ON"
-
-### Address Format
-
-```
-70-character address:
-- First 6 chars: SHA512("GardenContract") prefix
-- Last 64 chars: SHA512(device_id) hash
-```
-
-## Troubleshooting
-
-### Services not starting
+### 3. Khởi động toàn bộ hệ thống (One-Click Deployment)
+Hệ thống đã được container hóa hoàn toàn, cho phép bạn khởi động tất cả dịch vụ chỉ với một lệnh:
 
 ```bash
-# Check logs
-docker-compose logs
+# Di chuyển vào thư mục dự án
+cd hyperledger-sawtooth-asset-management
 
-# Restart services
-docker-compose restart
+# Build và khởi chạy tất cả các dịch vụ (Validator, Backend, Frontend...)
+docker-compose up -d --build
 ```
 
-### MongoDB connection issues
+### 4. Truy cập các thành phần
+Sau khi lệnh hoàn tất, hệ thống sẽ sẵn sàng tại:
+*   **Frontend Dashboard**: `http://localhost:8080` (Giao diện chính)
+*   **Backend API**: `http://localhost:3001`
+*   **Sawtooth REST API**: `http://localhost:8008`
 
+---
+
+## 🔍 Tính năng Nổi bật & Cách Demo
+
+Sau khi truy cập vào **Frontend Dashboard (`http://localhost:8080`)**:
+
+1. **Khởi tạo Định danh (Key Management)**:
+   - Truy cập tab *Key Management* để tạo một cặp khóa Private/Public Key. Đây là danh tính hợp lệ duy nhất giúp bạn ký các giao dịch (Smart Contract security).
+2. **Quản lý Tài sản (Asset Manager)**:
+   - Tạo mới các tài sản số. Nhờ tích hợp **ZeroMQ Event**, ngay khi bạn submit, giao dịch sẽ được đưa vào Validator và hiển thị lên màn hình gần như tức thì, không có độ trễ (hết lỗi PENDING).
+3. **Mô phỏng Tính Bất biến (Blockchain Explorer)**:
+   - Truy cập tab *Explorer* để xem danh sách Block. Nhấn nút **Simulate Attack** để xem mô phỏng hệ thống phát hiện sự can thiệp dữ liệu: Một mã Hash bị thay đổi sẽ phá vỡ toàn bộ chuỗi `PREV_HASH` phía sau nó.
+4. **Thử nghiệm Thực thi Song song (Performance Test)**:
+   - Sawtooth cho phép xử lý giao dịch song song (Parallel Scheduling) - một điểm mạnh vượt trội so với các blockchain khác.
+   - Tại tab *Performance*, bạn có thể giả lập bắn hàng loạt giao dịch tới Backend ở 2 chế độ: **Parallel** (sửa các tài sản khác nhau) và **Sequential** (sửa cùng 1 tài sản). So sánh thời gian thực thi để thấy sự khác biệt về hiệu năng.
+5. **Kiến trúc & Các Transaction Families (Architecture & Families)**:
+   - Xem các tab kiến trúc để hiểu cách hệ thống phân tách Core và App Domain, cũng như ý nghĩa của các Transaction Processor mặc định.
+
+---
+
+## 🛠️ Giải quyết sự cố thường gặp (Troubleshooting)
+
+| Vấn đề | Nguyên nhân | Giải pháp |
+| :--- | :--- | :--- |
+| **Giao diện cứ xoay Loading ở Dashboard** | Chưa tạo Key Identity | Vào tab Key Management để tạo định danh. |
+| **Bắn giao dịch bị PENDING / Không hiện lên UI** | Frontend đang gọi sai API | Kiểm tra file `frontend/.env` xem `VITE_API_URL` có đúng với IP máy WSL không. Cần build lại frontend nếu đổi env. |
+| **Lỗi GPG Keyserver khi Build Docker TP** | Chặn mạng nội bộ | Đã được khắc phục trong Dockerfile sử dụng Python pip install trực tiếp thay vì apt-get package cũ của Sawtooth. |
+
+---
+
+## 🧑‍💻 Câu lệnh Kiểm tra Container (Từ Terminal)
+
+**Xem danh sách các Block trực tiếp từ Core:**
 ```bash
-# Check MongoDB status
-docker-compose exec mongodb mongo --eval "db.adminCommand('ping')"
+docker exec -it sawtooth-validator sawtooth block list --url http://rest-api:8008
 ```
 
-### Validator not reaching consensus
-
+**Xem trạng thái các Transaction Processor (TP) đã kết nối:**
 ```bash
-# Check validator logs
-docker-compose logs validator-0
-
-# Verify network connectivity
-docker-compose exec validator-0 ping validator-1
+docker exec -it sawtooth-validator sawtooth status --url http://rest-api:8008
 ```
 
-### Reset the network
-
+**Đọc Log của Backend để xem ZMQ Events:**
 ```bash
-# Stop all services and remove data
-docker-compose down -v
-
-# Remove MongoDB data volume
-docker volume rm smart-garden-iot_mongodb_data
-
-# Restart
-docker-compose up -d
+docker logs -f sawtooth-backend
 ```
-
-## Development
-
-### Running services individually
-
-```bash
-# Start only the blockchain network
-docker-compose up -d validator-0 validator-1 validator-2 validator-3
-
-# Start the gateway
-docker-compose up -d iot-gateway
-
-# Start the dashboard in dev mode
-cd dashboard
-npm install
-npm run dev
-```
-
-### Modifying the smart contract
-
-1. Edit `processors/garden_tp/handler.py`
-2. Rebuild the TP:
-   ```bash
-   docker-compose build garden-tp
-   docker-compose up -d garden-tp
-   ```
-
-## Performance Considerations
-
-- **Block Time**: ~2 seconds (PBFT)
-- **Transaction Latency**: ~3-5 seconds (end-to-end)
-- **Max Validators**: 4 (optimal for PBFT)
-- **Data Retention**: Unlimited on blockchain, configurable in MongoDB
-
-## Security Features
-
-1. **Device Authentication**: Only whitelisted devices can submit data
-2. **Transaction Signing**: All transactions are cryptographically signed
-3. **Consensus**: PBFT provides Byzantine fault tolerance
-4. **Immutability**: All data is permanently recorded on the blockchain
-
-## License
-
-MIT License
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
